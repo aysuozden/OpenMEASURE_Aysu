@@ -557,9 +557,8 @@ class SPR(ROM):
         Parameters
         ----------
         y : numpy array
-            The measurement vector, size (s,3). The first column contains
-            the measurements, the second column contains the uncertainty (std deviation), 
-            and the third column contains which feature is measured.
+            The measurement vector, size (s,2). The first column contains
+            the measurements, the second column contains the uncertainty (std deviation).
 
         Returns
         -------
@@ -569,17 +568,11 @@ class SPR(ROM):
         '''
         
         y0 = np.zeros((y.shape[0],2))
-        
         cnt_vector = self.C.dot(self.X_cnt[:,0])
-        
-        # scl_vector = self.C @ self.X_scl[:,0]
-        scl_vector = self.X_scl[y[:,2].astype('int')*self.n_points, 0]
-        
-        y0[:,0] = (y[:,0] - cnt_vector) / scl_vector
-        y0[:,1] = y[:,1] / scl_vector
-        
         self.cnt_vector = cnt_vector
-        self.scl_vector = scl_vector
+        
+        y0[:,0] = y[:,0] - cnt_vector
+        y0[:,1] = y[:,1]
 
         return y0
 
@@ -794,7 +787,7 @@ class SPR(ROM):
         
         if not is_Theta:
             self.C = C
-            Theta = C.dot(self.Ur)
+            Theta = C.dot(self.X_scl * self.Ur)
         else:
             Theta = C
 
@@ -811,13 +804,8 @@ class SPR(ROM):
         # calculate the condition number
         
         if cond == True:
-            if Theta.shape[0] == Theta.shape[1]:
-                _, S_theta, _ = np.linalg.svd(Theta)
-                self.k = S_theta[0]/S_theta[-1]
-            else:
-                Theta_pinv = np.linalg.pinv(Theta)
-                _, S_theta, _ = np.linalg.svd(Theta_pinv)
-                self.k = S_theta[0]/S_theta[-1]
+            Theta_pinv = np.linalg.pinv(Theta)
+            self.k = np.linalg.norm(Theta)*np.linalg.norm(Theta_pinv)
             
     def predict(self, y):
         '''
@@ -827,18 +815,17 @@ class SPR(ROM):
         Parameters
         ----------
         y : numpy array or list of numpy arrays
-            Either a  measurement vector, size (s,3), or a list of measurement vectors.
+            Either a  measurement vector, size (s,2), or a list of measurement vectors.
             The first column contains the measurements, the second column contains 
-            the uncertainty (std deviation), and the third column contains which 
-            feature is measured.
+            the uncertainty (std deviation).
 
         Returns
         -------
         Ar : numpy array
             The low-dimensional projection of the state of the system, size (n,r) where
             n is the number of measurement vectors in y.
-        Ar_sigma : numpy array
-            The uncertainty (standard deviation) of the projection, size (n,r).
+        Ar_cov : numpy array
+            The covariance of the projection, size (n,r,r).
 
         '''
         if isinstance(y, np.ndarray):
@@ -849,9 +836,9 @@ class SPR(ROM):
                 raise ValueError('The number of rows of Theta does not match the number' \
                                 ' of rows of y.')
             
-            if y[i].shape[1] != 3:
+            if y[i].shape[1] != 2:
                 raise ValueError('The y array has the wrong number of columns. y has' \
-                                    ' to have dimensions (s,3).')
+                                    ' to have dimensions (s,2).')
         
         if not hasattr(self, 'Theta'):
             raise AttributeError('The function fit has to be called '\
@@ -860,18 +847,18 @@ class SPR(ROM):
         n = len(y)
         
         Ar = np.zeros((n, self.r))
-        Ar_sigma = np.zeros((n, self.r))
+        Ar_cov = np.zeros((n, self.r, self.r))
         
         for i in range(n):
             y0 = self.scale_vector(y[i])
             
             if not np.any(y[i][:,1]):
                 W = np.eye(y[i].shape[0])
-                ar_sigma = np.zeros((self.r, ))
+                ar_cov = np.zeros((self.r, self.r))
             else:
                 W = np.diag(1/y0[:,1])  # Weights used for the weighted OLS and COLS
                 Theta_pinv = np.linalg.pinv(W @ self.Theta)
-                ar_sigma = np.abs(np.dot(Theta_pinv, y0[:,1]))
+                ar_cov = np.linalg.multi_dot([Theta_pinv, np.diag(y0[:,1]), Theta_pinv.T])
 
             if self.method == 'OLS':
                 Theta_pinv = np.linalg.pinv(W @ self.Theta)
@@ -888,7 +875,7 @@ class SPR(ROM):
                 objective = cp.Minimize(cp.sum_squares(W @ (y0[:,0] - self.Theta @ g)))
                 constrs = [x0_tilde >= limits0[0], x0_tilde <= limits0[1]]
                 prob = cp.Problem(objective, constrs)
-                min_value = prob.solve(solver=self.solver, verbose=self.verbose)
+                prob.solve(solver=self.solver, verbose=self.verbose)
                 ar = g.value
             
             else:
@@ -896,7 +883,7 @@ class SPR(ROM):
                                             'implemented yet')    
                 
             Ar[i, :] = ar
-            Ar_sigma[i, :]  = ar_sigma
+            Ar_cov[i, :, :]  = ar_cov
         
-        return Ar, Ar_sigma
+        return Ar, Ar_cov
 
