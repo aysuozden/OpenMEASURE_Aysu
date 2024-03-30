@@ -26,35 +26,41 @@ class TestSPR:
 
     def test_scale_vector(self):
         X_cnt = np.mean(self.spr.X, axis=1)[:, np.newaxis]
-        X_scl = np.zeros((self.spr.X.shape[0], 1))
-        for i_f in range(self.spr.n_features):
-            X_scl[i_f*self.spr.n_points:(i_f+1)*self.spr.n_points] = np.std(self.spr.X[i_f*self.spr.n_points:(i_f+1)*self.spr.n_points])
         
         self.spr.fit(n_modes=100)
         self.spr.train(self.C)
         
-        y = np.zeros((self.C.shape[0], 3))
+        y = np.zeros((self.C.shape[0], 2))
         y[:,0] = self.C @ self.spr.X[:, 0]
-        for i in range(self.n_features):
-            y[i*self.n_points:(i+1)*self.n_points, 2] = i
-
+        
         y0 = self.spr.scale_vector(y)
 
         y0_check = np.zeros((self.C.shape[0], 2))
-        y0_check[:,0] = (y[:,0]-X_cnt[:,0])/X_scl[:,0]
-
+        y0_check[:,0] = (y[:,0]-X_cnt[:,0])
+        
         np.testing.assert_allclose(y0, y0_check)
     
     def test_predict(self):
         self.spr.fit(n_modes=100)
         self.spr.train(self.C)
 
-        y = np.zeros((self.C.shape[0], 3))
+        y = np.zeros((self.C.shape[0], 2))
         y[:,0] = self.C @ self.spr.X[:, 0]
-        for i in range(self.n_features):
-            y[i*self.n_points:(i+1)*self.n_points, 2] = i
-
+        
         a, _ = self.spr.predict(y)
         x_pred = self.spr.reconstruct(a)
 
         np.testing.assert_allclose(x_pred, self.spr.X[:, [0]])        
+
+    def test_predict_uncertainty(self):
+        self.spr.fit(n_modes=100)
+        self.spr.train(self.C)
+
+        y = np.zeros((self.C.shape[0], 2))
+        y[:,0] = self.C @ self.spr.X[:, 0]
+        y[:,1] = 0.1  
+        
+        _, a_cov = self.spr.predict(y)
+        
+        L = np.linalg.cholesky(a_cov[0,:,:]) 
+        

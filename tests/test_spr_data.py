@@ -138,11 +138,8 @@ class TestSPR:
         n_sensors = 5
         C_qr = self.spr.optimal_placement()
 
-        y_qr = np.zeros((n_sensors,3))
+        y_qr = np.zeros((n_sensors,2))
         y_qr[:,0] = C_qr @ self.X_test[:,3]
-
-        for i in range(n_sensors):
-            y_qr[i,2] = np.argmax(C_qr[i,:]) //self.n_cells
 
         self.spr.train(C_qr)
         Ap, _ = self.spr.predict(y_qr)
@@ -155,17 +152,13 @@ class TestSPR:
         plot_contours_tri(self.xz[:,0], self.xz[:,1], [self.X_test[ind*self.n_cells:(ind+1)*self.n_cells, 3], 
                         Xp[ind*self.n_cells:(ind+1)*self.n_cells, 0]], cbar_label=str_ind)
 
-
     def test_prediction_optimal_placement_cols(self):
         self.spr.fit(scale_type='std', select_modes='number', n_modes=5, axis_cnt=1)
         n_sensors = 5
         C_qr = self.spr.optimal_placement()
 
-        y_qr = np.zeros((n_sensors,3))
+        y_qr = np.zeros((n_sensors,2))
         y_qr[:,0] = C_qr @ self.X_test[:,3]
-
-        for i in range(n_sensors):
-            y_qr[i,2] = np.argmax(C_qr[i,:]) //self.n_cells
 
         limit_min = np.array([200., 0., 0., 0., 0., 0., 0., 0., 0.])
         limit_max = np.array([3000., 1., 1., 1., 1., 1., 1., 1., 1.])
