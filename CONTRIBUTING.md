@@ -12,6 +12,8 @@ Thank you for taking your time to contribute to OpenMEASURE! This document will 
 
 - Start by creating a fork of the repository, so that you can implement your modifications. Name the fork in a way that identifies the changes to be made. Try to keep the modification as small as possible, and try to aim for incremental changes. If you're not familiar with Git/GitHub, you can find some documentation [here](https://product.hubspot.com/blog/git-and-github-tutorial-for-beginners).
 
+- Follow the git [workflow](https://docs.github.com/en/get-started/exploring-projects-on-github/contributing-to-a-project#).
+
 - Remember to document and annotate your code.
 
 - Run the tests using `pytest`. 
