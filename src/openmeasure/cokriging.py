@@ -13,7 +13,7 @@ MODULE: cokriging.py
 
 #%%
 import numpy as np
-import sparse_sensing as sps
+import openmeasure.sparse_sensing as sps
 from openmdao.surrogate_models.multifi_cokriging import MultiFiCoKriging
 
 class CoKriging():
